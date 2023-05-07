@@ -1,0 +1,14 @@
+# api keys
+config.py
+
+#ds store
+.DS_Store
+
+#venv
+.venv/
+
+#pycache
+__pycache__/
+
+#vscode
+.vscode/
