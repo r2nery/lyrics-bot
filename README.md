@@ -9,11 +9,11 @@ Input videos must be 16:9 and output is 9:16. Parameters such as length, fontsiz
 
 ````
 bot = VideoBot(
-        bg_url=bg_url,
-        song_url=song_url,
-        results_dir=results_dir,
-        downloads_dir=downloads_dir,
-        lyrics_dir=lyrics_dir,
+        bg_url,
+        song_url,
+        results_dir,
+        downloads_dir,
+        lyrics_dir,
         length=30,
         padding=50,
         snippets=2,
