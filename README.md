@@ -7,7 +7,7 @@ The most salient minute is detected with spectrogram analysis and the lyrics are
 Input videos must be 16:9 and output is 9:16. Parameters such as length, fontsize, bitrate and more can also be tweaked.
 
 
-````
+````python
 bot = VideoBot(
         bg_url,
         song_url,
