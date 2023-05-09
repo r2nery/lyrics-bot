@@ -22,8 +22,10 @@ class VideoBot:
         downloads_dir,
         lyrics_dir,
         length=60,
+        font_size=38,
         snippets=5,
         padding=10,
+        bitrate="5000k",
         verbose=False,
     ):
         self.song_url = song_url
@@ -44,9 +46,13 @@ class VideoBot:
 
         self.song_title = None
         self.bg_title = None
+        self.artist = None
+        self.title = None
+        self.font_size = font_size
         self.length = length
         self.snippets = snippets
         self.padding = padding
+        self.bitrate = bitrate
         self.verbose = verbose
 
         # verify if the directories are dirs and exist
@@ -73,26 +79,48 @@ class VideoBot:
                         "preferredquality": "192",
                     }
                 ],
+                "nocheckcertificate": True,
+                "quiet": True,
+                "progress": True,
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(self.song_url, download=False)
-                if Path(self.song_dir).exists() and self.verbose:
-                    print("-> Song altready downloaded! Continuing...")
+                self.title = info_dict["track"]
+                self.artist = info_dict["artist"]
+                print(f"-> Running LyricBot for {self.title} by {self.artist}...")
+                if Path(self.song_dir).exists():
+                    if self.verbose:
+                        print("-> Song altready downloaded! Continuing...")
                 else:
+                    if self.verbose:
+                        print("-> Downloading song...")
                     ydl.download([self.song_url])
                 self.song_title = info_dict["title"]
 
         def mp4():
             ydl_opts = {
                 "outtmpl": str(self.backgrounds_dir / f"{self.bg_id}.%(ext)s"),
-                "format": "mp4",
+                "format": "bestvideo[height=1080][ext=mp4]",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegVideoConvertor",
+                        "preferedformat": "mp4",
+                    }
+                ],
+                "nocheckcertificate": True,
+                "quiet": True,
+                "progress": True,
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(self.bg_url, download=False)
-                if Path(self.bg_dir).exists() and self.verbose:
-                    print("-> Background altready downloaded! Continuing...")
+                if Path(self.bg_dir).exists():
+                    if self.verbose:
+                        print("-> Background altready downloaded! Continuing...")
                 else:
+                    if self.verbose:
+                        print("-> Downloading background...")
                     ydl.download([self.bg_url])
+
                 self.bg_title = info_dict["title"]
 
         mp3()
@@ -107,6 +135,10 @@ class VideoBot:
         except Exception as e:
             raise ValueError(f"Failed to load audio file: {e}")
 
+        if librosa.get_duration(y=y) <= 60:
+            print("-> Song is altready cropped! Skipping...")
+            return
+
         # Compute the spectrogram of the audio signal
         S = np.abs(librosa.stft(y))
         band_means = np.mean(S, axis=1)
@@ -120,7 +152,7 @@ class VideoBot:
         extracted_segment.export(outfile, format="mp3")
 
         if self.verbose:
-            print(f"Cropped song from {start_time:.2f} to {end_time:.2f} seconds.")
+            print(f"-> Cropped song from {start_time:.2f} to {end_time:.2f} seconds.")
 
     def generate_lyrics(self):
         file = self.song_dir
@@ -135,7 +167,7 @@ class VideoBot:
         open(self.lyric_dir, "a").write(string)
 
     def assemble_video(self):
-        clip = VideoFileClip(str(self.bg_dir))
+        clip = VideoFileClip(str(self.bg_dir), verbose=False)
         valid_start_time = self.padding
         valid_end_time = clip.duration - self.padding - self.snippets
 
@@ -175,7 +207,7 @@ class VideoBot:
         generator = lambda txt: TextClip(
             txt,
             font="HelveticaNeueLTStd-HvCn",
-            fontsize=45,
+            fontsize=self.font_size,
             color="white",
             stroke_color="black",
             stroke_width=1,
@@ -195,16 +227,23 @@ class VideoBot:
         audio_clip = AudioFileClip(str(self.song_dir))
         final_clip = final_clip.set_audio(audio_clip)
 
-        output_file = str(self.results_dir / f"{self.song_title}.mp4")
-        # Write the output video
+        if self.artist and self.title:
+            output_file = str(self.results_dir / f"{self.artist} - {self.title}.mp4")
+        else:
+            output_file = str(self.results_dir / f"{self.song_title}.mp4")
+
+        if self.verbose:
+            print(f"-> Assembling Lyric Video...")
+
         final_clip.write_videofile(
             str(output_file),
             fps=clip.fps,
             threads=8,
             preset="ultrafast",
             codec="libx264",
-            bitrate="3000k",
+            bitrate=self.bitrate,
             audio_codec="aac",
+            logger="bar",
         )
 
     def run(self):
@@ -215,8 +254,8 @@ class VideoBot:
 
 
 if __name__ == "__main__":
-    bg_url = "https://www.youtube.com/watch?v=uXZOr3vaqqI"
-    song_url = "https://www.youtube.com/watch?v=pok8H_KF1FA"
+    bg_url = "https://www.youtube.com/watch?v=" + ""
+    song_url = "https://www.youtube.com/watch?v=" + ""
 
     cwd = Path.cwd()
     results_dir = cwd / "results"
@@ -229,10 +268,15 @@ if __name__ == "__main__":
         results_dir=results_dir,
         downloads_dir=downloads_dir,
         lyrics_dir=lyrics_dir,
-        length=30,
+        length=60,
+        font_size=38,
         padding=50,
-        snippets=2,
-        verbose=False,
+        snippets=5,
+        bitrate="3000k",
+        verbose=True,
     )
 
-    bot.run()
+    bot.download()
+    # bot.crop_audio()
+    # bot.generate_lyrics()
+    bot.assemble_video()

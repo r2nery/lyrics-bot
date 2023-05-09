@@ -13,4 +13,6 @@ __pycache__/
 #vscode
 .vscode/
 
-0.downloads
+downloads/
+lyrics/
+results
